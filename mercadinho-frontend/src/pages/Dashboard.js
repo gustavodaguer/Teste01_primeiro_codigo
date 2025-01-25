@@ -32,19 +32,6 @@ const Dashboard = () => {
             </div>
           </div>
         </div>
-        <div className="col-md-4 mt-4">
-          <div className="card">
-            <div className="card-body">
-              <h5 className="card-title">Gerenciar Estoque</h5>
-              <p className="card-text">
-                Ver e gerenciar o estoque de produtos.
-              </p>
-              <Link to="/estoque" className="btn btn-primary">
-                Acessar
-              </Link>
-            </div>
-          </div>
-        </div>
         <div className="col-md-4">
           <div className="card">
             <div className="card-body">

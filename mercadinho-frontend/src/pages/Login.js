@@ -22,7 +22,6 @@ const Login = () => {
       localStorage.setItem("token", response.data.token);
       navigate("/dashboard"); // Redireciona para o dashboard após o login
     } catch (err) {
-      console.log("ahhhhhh", err);
       setError("Usuário ou senha incorretos");
     }
   };

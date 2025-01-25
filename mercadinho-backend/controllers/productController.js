@@ -1,6 +1,4 @@
 const Product = require("../models/Product");
-const Supplier = require("../models/Supplier");
-const Payable = require("../models/Payable");
 
 // Controlador para criar um produto
 exports.createProduct = async (req, res) => {
@@ -18,13 +16,6 @@ exports.createProduct = async (req, res) => {
       supplierId,
     } = req.body;
 
-    // Verifica se o fornecedor existe
-    const supplier = await Supplier.findByPk(supplierId);
-    if (!supplier) {
-      return res.status(404).json({ message: "Fornecedor não encontrado" });
-    }
-
-    // Cria o produto
     const product = await Product.create({
       barcode,
       name,
@@ -35,38 +26,12 @@ exports.createProduct = async (req, res) => {
       promotionPrice,
       minQuantity,
       maxQuantity,
-      SupplierId: supplierId,
+      SupplierId: supplierId, // Associa o produto ao fornecedor
     });
 
-    // Calcula o valor total do pedido inicial (quantidade * preço de custo)
-    const totalCost = stockQuantity * costPrice;
-
-    // Criação das contas a pagar com base no número de parcelas do fornecedor
-    const installmentAmount = totalCost / supplier.maxInstallments;
-    const today = new Date();
-
-    // Gera as parcelas para as contas a pagar
-    for (let i = 0; i < supplier.maxInstallments; i++) {
-      const dueDate = new Date(today);
-      dueDate.setMonth(today.getMonth() + i);
-
-      await Payable.create({
-        SupplierId: supplier.id,
-        amount: installmentAmount,
-        dueDate,
-      });
-    }
-
-    res.status(201).json({
-      message: "Produto criado com sucesso e contas a pagar geradas",
-      product,
-    });
+    res.status(201).json(product);
   } catch (error) {
-    console.error("Erro ao criar produto:", error);
-    res.status(500).json({
-      message: "Erro ao criar produto e registrar contas a pagar",
-      error,
-    });
+    res.status(400).json({ error: "Erro ao criar produto", details: error });
   }
 };
 

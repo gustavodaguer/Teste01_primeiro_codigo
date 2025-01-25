@@ -1,8 +1,6 @@
 const express = require("express");
 const sequelize = require("./config/database");
-const cors = require("cors");
 require("dotenv").config();
-
 const authRoutes = require("./routes/auth");
 const clientRoutes = require("./routes/clientRoutes");
 const supplierRoutes = require("./routes/supplierRoutes");
@@ -10,35 +8,32 @@ const productRoutes = require("./routes/productRoutes");
 const saleRoutes = require("./routes/saleRoutes");
 const receivableRoutes = require("./routes/receivableRoutes");
 const payableRoutes = require("./routes/payableRoutes");
-const orderRoutes = require("./routes/orderRoutes");
-
-const cron = require("node-cron");
-const orderController = require("./controllers/orderController");
+const orderRoutes = require("./routes/orderRoutes"); // Novas rotas de pedidos
 
 const app = express();
 const port = 4321;
 
-// Middleware para interpretar JSON
-app.use(express.json());
-
-// Habilitar CORS para permitir requisições do front-end (porta 3000)
-app.use(cors());
-
-// Sincroniza os modelos com o banco de dados
-sequelize
-  .sync({ force: false }) // O parâmetro 'force: false' não apaga os dados existentes
-  .then(() => {
-    console.log("Tabelas sincronizadas com o banco de dados.");
-  })
-  .catch((err) => {
-    console.error("Erro ao sincronizar tabelas:", err);
-  });
+const cron = require("node-cron");
+const orderController = require("./controllers/orderController");
 
 // Agendamento para verificar estoque e gerar pedidos diariamente às 6h
 cron.schedule("0 6 * * *", () => {
   console.log("Verificando estoque para gerar pedidos de reabastecimento...");
   orderController.generateAutomaticOrder();
 });
+
+// Middleware para interpretar JSON
+app.use(express.json());
+
+// Testando a conexão com o banco de dados
+sequelize
+  .authenticate()
+  .then(() => {
+    console.log("Conexão com o banco de dados estabelecida com sucesso.");
+  })
+  .catch((err) => {
+    console.error("Erro ao conectar ao banco de dados:", err);
+  });
 
 // Rotas de autenticação
 app.use("/api/auth", authRoutes);

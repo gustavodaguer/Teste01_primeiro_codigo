@@ -16,48 +16,75 @@ exports.getOrders = async (req, res) => {
 // Controlador para gerar automaticamente um pedido de reabastecimento
 exports.generateAutomaticOrder = async (req, res) => {
   try {
-    const { productId } = req.body;
-    const product = await Product.findByPk(productId, { include: Supplier });
+    // Busca todos os produtos que estão abaixo da quantidade mínima
+    const lowStockProducts = await Product.findAll({
+      where: {
+        stockQuantity: {
+          [sequelize.Op.lt]: sequelize.col("minQuantity"), // Comparação entre quantidade em estoque e mínimo
+        },
+      },
+      include: Supplier,
+    });
 
-    if (!product) {
-      return res.status(404).json({ message: "Produto não encontrado" });
+    if (lowStockProducts.length === 0) {
+      return res
+        .status(200)
+        .json({ message: "Nenhum produto precisa ser reabastecido." });
     }
 
-    const supplier = product.Supplier;
-    if (!supplier) {
-      return res.status(404).json({ message: "Fornecedor não encontrado" });
-    }
+    // Agrupa os produtos por fornecedor
+    const ordersToCreate = {};
+    lowStockProducts.forEach((product) => {
+      const supplierId = product.SupplierId;
 
-    // Calcula a quantidade para reabastecimento
-    const quantityToOrder = product.maxQuantity - product.stockQuantity;
-    const totalCost = quantityToOrder * product.costPrice;
+      if (!ordersToCreate[supplierId]) {
+        ordersToCreate[supplierId] = {
+          supplier: product.Supplier,
+          products: [],
+          totalValue: 0,
+        };
+      }
 
-    // Criação das contas a pagar baseadas no número de parcelas do fornecedor
-    const installmentAmount = totalCost / supplier.maxInstallments;
-    const today = new Date();
-
-    for (let i = 0; i < supplier.maxInstallments; i++) {
-      const dueDate = new Date(today);
-      dueDate.setMonth(today.getMonth() + i);
-
-      await Payable.create({
-        SupplierId: supplier.id,
-        amount: installmentAmount,
-        dueDate,
+      // Calcular a quantidade a ser pedida
+      const quantityToOrder = product.maxQuantity - product.stockQuantity;
+      ordersToCreate[supplierId].products.push({
+        productId: product.id,
+        quantity: quantityToOrder,
+        unitCostPrice: product.costPrice,
+        totalCost: product.costPrice * quantityToOrder,
       });
-    }
+      ordersToCreate[supplierId].totalValue +=
+        product.costPrice * quantityToOrder;
+    });
 
-    // Atualiza a quantidade do produto no estoque
-    await product.update({ stockQuantity: product.maxQuantity });
+    // Criar pedidos por fornecedor
+    const createdOrders = [];
+    for (const supplierId in ordersToCreate) {
+      const orderData = ordersToCreate[supplierId];
+      const order = await Order.create({
+        totalValue: orderData.totalValue,
+        SupplierId: supplierId,
+      });
+
+      for (const productData of orderData.products) {
+        await OrderProduct.create({
+          OrderId: order.id,
+          ProductId: productData.productId,
+          quantity: productData.quantity,
+          unitCostPrice: productData.unitCostPrice,
+        });
+      }
+
+      createdOrders.push(order);
+    }
 
     res.status(201).json({
-      message:
-        "Pedido de reabastecimento criado e contas a pagar geradas com sucesso",
+      message: "Pedidos de reabastecimento gerados com sucesso",
+      orders: createdOrders,
     });
   } catch (error) {
-    console.error("Erro ao criar pedido de reabastecimento:", error);
     res
       .status(500)
-      .json({ message: "Erro ao criar pedido de reabastecimento", error });
+      .json({ error: "Erro ao gerar pedidos automaticamente", details: error });
   }
 };

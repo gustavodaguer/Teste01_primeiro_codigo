@@ -10,7 +10,6 @@ import Dashboard from "./pages/Dashboard";
 import Clientes from "./pages/Clientes";
 import Fornecedores from "./pages/Fornecedores";
 import Produtos from "./pages/Produtos"; // Adicionando Produtos
-import Estoque from "./pages/Estoque";
 
 // Função para proteger as rotas
 const PrivateRoute = ({ children }) => {
@@ -28,14 +27,6 @@ const App = () => {
           element={
             <PrivateRoute>
               <Dashboard />
-            </PrivateRoute>
-          }
-        />
-        <Route
-          path="/estoque"
-          element={
-            <PrivateRoute>
-              <Estoque />
             </PrivateRoute>
           }
         />
